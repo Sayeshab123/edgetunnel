@@ -4,31 +4,48 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   obfuscate:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install obfuscator
+      - name: Install javascript-obfuscator
         run: npm install -g javascript-obfuscator
 
-      - name: Obfuscate JS
+      - name: Obfuscate _worker.js
         run: |
-          javascript-obfuscator src --output dist
+          mkdir -p dist
+          javascript-obfuscator _worker.js \
+            --output dist/_worker.js \
+            --compact true \
+            --control-flow-flattening true \
+            --dead-code-injection true \
+            --string-array true \
+            --string-array-encoding base64
 
-      - name: Commit obfuscated files
+      - name: Commit and Push obfuscated file
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add dist
-          git commit -m "Update obfuscated files" || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add dist/_worker.js
+
+          git diff --cached --quiet || git commit -m "Update obfuscated worker"
+
           git push
+          
